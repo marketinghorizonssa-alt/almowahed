@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /wp-admin/
+Allow: /wp-admin/admin-ajax.php
+Allow: /ads/
+
+Sitemap: https://almowahid.sa/wp-sitemap.xml
+Sitemap: https://almowahid.sa/ads/sitemap.xml
