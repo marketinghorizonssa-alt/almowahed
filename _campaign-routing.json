@@ -1,0 +1,44 @@
+{
+  "base_url": "https://ads.almowahid.sa/",
+  "recruitment_countries": [
+    "سيرلانكا",
+    "الفلبين",
+    "بنجلاديش",
+    "كينيا",
+    "إثيوبيا",
+    "بورندي",
+    "أوغندا"
+  ],
+  "drivers_country": "الهند",
+  "pricing_policy": "No prices displayed",
+  "pages": [
+    {
+      "slug": "recruitment-office",
+      "intent": "مكتب استقدام / مساند / معتمد"
+    },
+    {
+      "slug": "domestic-workers",
+      "intent": "عاملة منزلية / شغالات / خادمات"
+    },
+    {
+      "slug": "philippines",
+      "intent": "استقدام عاملات من الفلبين"
+    },
+    {
+      "slug": "ethiopia",
+      "intent": "استقدام عاملات من إثيوبيا"
+    },
+    {
+      "slug": "nationalities",
+      "intent": "كينيا / بنجلاديش / سيرلانكا / بورندي / أوغندا"
+    },
+    {
+      "slug": "drivers",
+      "intent": "سائق خاص من الهند فقط"
+    },
+    {
+      "slug": "offers-fast",
+      "intent": "العروض / التوفر / الوصول"
+    }
+  ]
+}
