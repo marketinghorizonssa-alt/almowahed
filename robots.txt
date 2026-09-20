@@ -1,3 +1,3 @@
 User-agent: *
-Allow: /
+Allow: /ads/
 Sitemap: https://almowahid.sa/ads/sitemap.xml
