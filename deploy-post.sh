@@ -11,16 +11,3 @@ cp "$ROOT/wp-content/uploads/2026/07/image_5.jpg" "$ROOT/ads/assets/img/hero-phi
 cp "$ROOT/ads/llms.txt" "$ROOT/llms.txt"
 cp "$ROOT/ads/robots-root.txt" "$ROOT/robots.txt"
 
-HT="$ROOT/.htaccess"
-if ! grep -q 'RewriteRule ^ads$ /ads/index.html' "$HT"; then
-  TMP="$HT.almowahid.tmp"
-  {
-    echo '<IfModule mod_rewrite.c>'
-    echo 'RewriteEngine On'
-    echo 'RewriteRule ^ads$ /ads/index.html [END]'
-    echo '</IfModule>'
-    echo ''
-    cat "$HT"
-  } > "$TMP"
-  mv "$TMP" "$HT"
-fi
