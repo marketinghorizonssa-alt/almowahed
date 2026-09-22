@@ -67,7 +67,7 @@ $forward = [
     'creative_id' => clean_value($data['creative_id'] ?? '', 120),
 ];
 
-$endpoint = 'https://script.google.com/macros/s/AKfycbzKbQPThvIZySiM20QINiKCENM3JwMiDyNjHr2w659ThMcRfvYWMgyjXFQb5KMj-y-N-A/exec';
+$endpoint = 'https://script.google.com/macros/s/AKfycbzpY2jJ9X1yXusKxUZo3z8YZC1y8KCuszJ9NrMW9HelE4Iki-I54ewbvPHthXbr54DpwA/exec';
 
 $ch = curl_init($endpoint);
 curl_setopt_array($ch, [
