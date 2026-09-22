@@ -119,6 +119,11 @@
         creative_id: getSavedAttribution('creative_id') || getSavedAttribution('ad_id')
       };
 
+      const googlePaid = !!(payload.gclid || payload.gbraid || payload.wbraid || String(payload.utm_source || '').toLowerCase() === 'google');
+      const sourceTag = googlePaid
+        ? 'المصدر: Google Ads'
+        : (payload.utm_source ? 'المصدر: ' + payload.utm_source : 'المصدر: Website');
+
       const lines = [
         'السلام عليكم، أريد طلب خدمة من موقع الموحد للاستقدام.',
         'الاسم: ' + fullName,
@@ -126,6 +131,7 @@
         'الخدمة: ' + payload.service,
         payload.nationality ? 'الجنسية: ' + payload.nationality : '',
         payload.message ? 'التفاصيل: ' + payload.message : '',
+        sourceTag,
         'الصفحة: ' + location.pathname
       ].filter(Boolean);
 
