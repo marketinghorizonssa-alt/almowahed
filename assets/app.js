@@ -1,4 +1,6 @@
 (()=> {
+  if (window.__almowahidDirectTagInit) return;
+  window.__almowahidDirectTagInit = true;
   const dl = window.dataLayer = window.dataLayer || [];
   const qs = new URLSearchParams(location.search);
   const ATTRS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','utm_id','utm_source_platform','utm_creative_format','utm_marketing_tactic','gclid','gbraid','wbraid','dclid','ttclid','fbclid','scclid','ScCid','msclkid','li_fat_id','twclid','srsltid','gad_source','gad_campaignid','campaign_id','campaignid','campaign_name','adgroup_id','adgroupid','adgroup_name','ad_id','creative','creative_id','ad_name','keyword','matchtype','network','device','placement','targetid','loc_physical_ms','loc_interest_ms','feeditemid','extensionid','adposition'];
@@ -116,8 +118,10 @@
   }
 
   function pushEvent(name, params={}) {
-    dl.push({event:name, ...params});
-    if (typeof gtag === 'function') gtag('event', name, params);
+    // Direct Google tag only. Do not duplicate the same event with a second dataLayer event.
+    if (typeof gtag === 'function') {
+      gtag('event', name, params);
+    }
   }
 
   function adsConversion(sendTo, params={}) {
