@@ -1,12 +1,119 @@
 (()=> {
   const dl = window.dataLayer = window.dataLayer || [];
   const qs = new URLSearchParams(location.search);
-  const ATTRS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','gbraid','wbraid','campaign_id','adgroup_id','ad_id','creative_id'];
+  const ATTRS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','utm_id','utm_source_platform','utm_creative_format','utm_marketing_tactic','gclid','gbraid','wbraid','dclid','ttclid','fbclid','scclid','ScCid','msclkid','li_fat_id','twclid','srsltid','gad_source','gad_campaignid','campaign_id','campaignid','campaign_name','adgroup_id','adgroupid','adgroup_name','ad_id','creative','creative_id','ad_name','keyword','matchtype','network','device','placement','targetid','loc_physical_ms','loc_interest_ms','feeditemid','extensionid','adposition'];
   const ADS = {
     form: 'AW-16848499995/eOdNCLS91_8cEJvq_uE-',
     whatsapp: 'AW-16848499995/4cylCLe91_8cEJvq_uE-',
     call: 'AW-16848499995/mPNJCLq91_8cEJvq_uE-'
   };
+
+  const WA_ATTR_ENDPOINT = 'https://marketing.hositee.com/wa_click_attribution.php';
+  const WA_CLIENT_ID = 'cl_3ea5ae96e05c6b';
+  const WA_BUSINESS_NUMBER = '+966537033347';
+  const WA_DEFAULT_TEXT = 'السلام عليكم، أرغب في الاستفسار عن خدمات الموحد للاستقدام.';
+  let firstTouch = null;
+  let lastTouch = null;
+
+  function attributionParams() {
+    const out = {};
+    ATTRS.forEach(key => {
+      const value = getSavedAttribution(key);
+      if (value) out[key] = value;
+    });
+    return out;
+  }
+
+  function touchSnapshot() {
+    return {
+      url: location.href,
+      referrer: document.referrer || '',
+      params: attributionParams(),
+      at: new Date().toISOString()
+    };
+  }
+
+  function initTouches() {
+    const now = touchSnapshot();
+    try {
+      firstTouch = JSON.parse(sessionStorage.getItem('almowahid_first_touch_v1') || 'null');
+    } catch (_) { firstTouch = null; }
+    if (!firstTouch || typeof firstTouch !== 'object') {
+      firstTouch = now;
+      try { sessionStorage.setItem('almowahid_first_touch_v1', JSON.stringify(firstTouch)); } catch (_) {}
+    }
+    lastTouch = now;
+    try { sessionStorage.setItem('almowahid_last_touch_v1', JSON.stringify(lastTouch)); } catch (_) {}
+  }
+
+  function makeClickId() {
+    const rnd = (() => {
+      try {
+        const a = new Uint32Array(2);
+        crypto.getRandomValues(a);
+        return Array.from(a, n => n.toString(36)).join('');
+      } catch (_) {
+        return Math.random().toString(36).slice(2,14);
+      }
+    })();
+    return 'clk_' + Date.now().toString(36) + '_' + rnd.slice(0,18);
+  }
+
+  function encodeHiddenMarker(value) {
+    const alphabet = ['\u200B','\u200C','\u200D','\uFEFF'];
+    const bytes = new TextEncoder().encode(value);
+    let out = '';
+    bytes.forEach(b => {
+      out += alphabet[(b >> 6) & 3] + alphabet[(b >> 4) & 3] + alphabet[(b >> 2) & 3] + alphabet[b & 3];
+    });
+    return out;
+  }
+
+  function prepareWhatsappHref(href, clickId) {
+    try {
+      const u = new URL(href, location.href);
+      if (!['wa.me','api.whatsapp.com'].includes(u.hostname)) return null;
+      let visible = u.searchParams.get('text') || WA_DEFAULT_TEXT;
+      visible = visible.replace(/[\u200B\u200C\u200D\uFEFF]{16,}/gu, '').trim();
+      const token = 'hzn.attr.' + clickId;
+      u.searchParams.set('text', visible + encodeHiddenMarker(token));
+      return {href:u.toString(), token};
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function recordWhatsappClick(a, clickId, token, originalHref) {
+    const current = touchSnapshot();
+    lastTouch = current;
+    const payload = {
+      client_id: WA_CLIENT_ID,
+      business_number: WA_BUSINESS_NUMBER,
+      click_id: clickId,
+      click_token: token,
+      source_url: location.href,
+      page_url: location.href,
+      landing_url: firstTouch && firstTouch.url ? firstTouch.url : location.href,
+      referrer: document.referrer || '',
+      original_href: originalHref,
+      button_text: (a.textContent || '').trim(),
+      button_context: a.getAttribute('aria-label') || a.className || '',
+      first_touch: firstTouch || current,
+      last_touch: lastTouch,
+      current_touch: current,
+      query_params: attributionParams(),
+      touch_history: [firstTouch || current, current],
+      browser_time: new Date().toISOString()
+    };
+    fetch(WA_ATTR_ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'Accept':'application/json'},
+      body: JSON.stringify(payload),
+      mode: 'cors',
+      credentials: 'omit',
+      keepalive: true
+    }).catch(() => {});
+  }
 
   function pushEvent(name, params={}) {
     dl.push({event:name, ...params});
@@ -30,10 +137,21 @@
     }
   });
 
+  initTouches();
+
   document.querySelectorAll('[data-event]').forEach(a => {
     a.addEventListener('click', () => {
       const name = a.dataset.event || '';
-      const params = {link_url:a.href || '', landing_path:location.pathname};
+      const originalHref = a.href || '';
+      if (name === 'click_whatsapp') {
+        const clickId = makeClickId();
+        const tracked = prepareWhatsappHref(originalHref, clickId);
+        if (tracked) {
+          a.href = tracked.href;
+          recordWhatsappClick(a, clickId, tracked.token, originalHref);
+        }
+      }
+      const params = {link_url:a.href || originalHref, landing_path:location.pathname};
       pushEvent(name, params);
       if (name === 'click_whatsapp' && !a.hasAttribute('data-whatsapp-complete')) {
         adsConversion(ADS.whatsapp, {value:1, currency:'SAR'});
