@@ -150,25 +150,40 @@ if ($pendingFile === null) {
     out_json(500, ['ok'=>false,'error'=>'local_queue_unavailable','message'=>'تعذر حفظ الطلب الآن، حاول مرة أخرى.']);
 }
 
-$delivery = receiver_post($forward);
-if ($delivery['ok']) {
-    queue_mark_delivered($pendingFile, $delivery['body'] ?? []);
-    $body = $delivery['body'] ?? [];
-    out_json(200, [
-        'ok'=>true,
-        'queued'=>false,
-        'lead_id'=>$body['lead_id'] ?? null,
-        'submission_id'=>$body['submission_id'] ?? $submissionId,
-        'duplicate'=>!empty($body['duplicate']),
-    ]);
-}
-
-queue_mark_failed($pendingFile, $delivery);
-
-// The lead is already safely stored on Hostinger. Treat it as accepted and retry automatically.
-out_json(200, [
+// The lead is durable on Hostinger now. Respond to the browser immediately
+// so the visitor never waits for Google Apps Script / Google Sheets latency.
+$response = json_encode([
     'ok'=>true,
     'queued'=>true,
     'submission_id'=>$submissionId,
-    'message'=>'تم استلام طلبك وسيتم مزامنته تلقائيًا.',
-]);
+    'message'=>'تم استلام طلبك بنجاح.'
+], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+
+http_response_code(200);
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
+header('Content-Length: '.strlen((string)$response));
+header('Connection: close');
+echo $response;
+
+// On Hostinger PHP-FPM this flushes the HTTP response while PHP continues
+// delivering the lead in the background. If unavailable, flush normally.
+if (function_exists('fastcgi_finish_request')) {
+    fastcgi_finish_request();
+} else {
+    while (ob_get_level() > 0) { @ob_end_flush(); }
+    @flush();
+}
+
+ignore_user_abort(true);
+@set_time_limit(25);
+
+// Best-effort immediate background delivery. The cron retry worker remains
+// the safety net if Apps Script is slow or temporarily unavailable.
+$delivery = receiver_post($forward);
+if ($delivery['ok']) {
+    queue_mark_delivered($pendingFile, $delivery['body'] ?? []);
+} else {
+    queue_mark_failed($pendingFile, $delivery);
+}
+exit;
