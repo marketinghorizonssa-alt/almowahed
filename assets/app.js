@@ -27,94 +27,75 @@
   }
 
   function touchSnapshot() {
-    return {
-      url: location.href,
-      referrer: document.referrer || '',
-      params: attributionParams(),
-      at: new Date().toISOString()
-    };
+    return {url:location.href,referrer:document.referrer||'',params:attributionParams(),at:new Date().toISOString()};
   }
 
   function initTouches() {
-    const now = touchSnapshot();
-    try {
-      firstTouch = JSON.parse(sessionStorage.getItem('almowahid_first_touch_v1') || 'null');
-    } catch (_) { firstTouch = null; }
-    if (!firstTouch || typeof firstTouch !== 'object') {
-      firstTouch = now;
-      try { sessionStorage.setItem('almowahid_first_touch_v1', JSON.stringify(firstTouch)); } catch (_) {}
+    const now=touchSnapshot();
+    try { firstTouch=JSON.parse(sessionStorage.getItem('almowahid_first_touch_v1')||'null'); } catch(_){ firstTouch=null; }
+    if(!firstTouch||typeof firstTouch!=='object'){
+      firstTouch=now;
+      try{sessionStorage.setItem('almowahid_first_touch_v1',JSON.stringify(firstTouch));}catch(_){}
     }
-    lastTouch = now;
-    try { sessionStorage.setItem('almowahid_last_touch_v1', JSON.stringify(lastTouch)); } catch (_) {}
+    lastTouch=now;
+    try{sessionStorage.setItem('almowahid_last_touch_v1',JSON.stringify(lastTouch));}catch(_){}
   }
 
-  function makeClickId() {
-    const rnd = (() => {
-      try {
-        const a = new Uint32Array(2);
-        crypto.getRandomValues(a);
-        return Array.from(a, n => n.toString(36)).join('');
-      } catch (_) {
-        return Math.random().toString(36).slice(2,14);
-      }
-    })();
-    return 'clk_' + Date.now().toString(36) + '_' + rnd.slice(0,18);
-  }
-
-  function encodeHiddenMarker(value) {
-    const alphabet = ['\u200B','\u200C','\u200D','\uFEFF'];
-    const bytes = new TextEncoder().encode(value);
-    let out = '';
-    bytes.forEach(b => {
-      out += alphabet[(b >> 6) & 3] + alphabet[(b >> 4) & 3] + alphabet[(b >> 2) & 3] + alphabet[b & 3];
-    });
+  function encodeHiddenMarker(value){
+    const alphabet=['\u200B','\u200C','\u200D','\uFEFF'];
+    let out='';
+    for(let i=0;i<value.length;i++){
+      const b=value.charCodeAt(i)&255;
+      out+=alphabet[(b>>6)&3]+alphabet[(b>>4)&3]+alphabet[(b>>2)&3]+alphabet[b&3];
+    }
     return out;
   }
 
-  function prepareWhatsappHref(href, clickId) {
-    try {
-      const u = new URL(href, location.href);
-      if (!['wa.me','api.whatsapp.com'].includes(u.hostname)) return null;
-      let visible = u.searchParams.get('text') || WA_DEFAULT_TEXT;
-      visible = visible.replace(/[\u200B\u200C\u200D\uFEFF]{16,}/gu, '').trim();
-      const token = 'hzn.attr.' + clickId;
-      u.searchParams.set('text', visible + encodeHiddenMarker(token));
-      return {href:u.toString(), token};
-    } catch (_) {
-      return null;
+  function embedHiddenToken(visible,token){
+    visible=String(visible||'').replace(/[\u200B\u200C\u200D\uFEFF]{12,}/gu,'').trim();
+    const hidden=encodeHiddenMarker(token);
+    if(!visible)return hidden;
+    const m=visible.match(/[،,\s]/u);
+    if(m&&typeof m.index==='number'&&m.index>0){
+      const i=m.index+1;
+      return visible.slice(0,i)+hidden+visible.slice(i);
     }
+    const cut=Math.min(4,visible.length);
+    return visible.slice(0,cut)+hidden+visible.slice(cut);
   }
 
-  function recordWhatsappClick(a, clickId, token, originalHref) {
-    const current = touchSnapshot();
-    lastTouch = current;
-    const payload = {
-      client_id: WA_CLIENT_ID,
-      business_number: WA_BUSINESS_NUMBER,
-      click_id: clickId,
-      click_token: token,
-      source_url: location.href,
-      page_url: location.href,
-      landing_url: firstTouch && firstTouch.url ? firstTouch.url : location.href,
-      referrer: document.referrer || '',
-      original_href: originalHref,
-      button_text: (a.textContent || '').trim(),
-      button_context: a.getAttribute('aria-label') || a.className || '',
-      first_touch: firstTouch || current,
-      last_touch: lastTouch,
-      current_touch: current,
-      query_params: attributionParams(),
-      touch_history: [firstTouch || current, current],
-      browser_time: new Date().toISOString()
+  async function buildTrackedWhatsappHref(href,a){
+    const u=new URL(href,location.href);
+    if(!['wa.me','api.whatsapp.com','web.whatsapp.com'].includes(u.hostname))return href;
+    const current=touchSnapshot(); lastTouch=current;
+    const payload={
+      mint_horizons_token:true,
+      client_id:WA_CLIENT_ID,
+      business_number:WA_BUSINESS_NUMBER,
+      source_url:location.href,
+      page_url:location.href,
+      landing_url:firstTouch&&firstTouch.url?firstTouch.url:location.href,
+      referrer:document.referrer||'',
+      original_href:href,
+      button_text:(a.textContent||'').trim(),
+      button_context:a.getAttribute('aria-label')||a.className||'',
+      first_touch:firstTouch||current,
+      last_touch:lastTouch,
+      current_touch:current,
+      query_params:attributionParams(),
+      touch_history:[firstTouch||current,current],
+      browser_time:new Date().toISOString()
     };
-    fetch(WA_ATTR_ENDPOINT, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json', 'Accept':'application/json'},
-      body: JSON.stringify(payload),
-      mode: 'cors',
-      credentials: 'omit',
-      keepalive: true
-    }).catch(() => {});
+    const res=await fetch(WA_ATTR_ENDPOINT,{
+      method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify(payload),mode:'cors',credentials:'omit'
+    });
+    if(!res.ok)throw new Error('attribution_http');
+    const j=await res.json();
+    if(!j||!j.ok||!j.click_token)throw new Error('attribution_token');
+    const visible=u.searchParams.get('text')||WA_DEFAULT_TEXT;
+    u.searchParams.set('text',embedHiddenToken(visible,String(j.click_token)));
+    return u.toString();
   }
 
   function pushEvent(name, params={}) {
@@ -144,36 +125,30 @@
   initTouches();
 
   document.querySelectorAll('[data-event]').forEach(a => {
-    a.addEventListener('click', () => {
-      const isPostFormWhatsapp = a.hasAttribute('data-whatsapp-complete');
-      const rawName = a.dataset.event || '';
-      const name = isPostFormWhatsapp && rawName === 'click_whatsapp'
-        ? 'post_form_whatsapp'
-        : rawName;
-      const originalHref = a.href || '';
-      const isWhatsapp = rawName === 'click_whatsapp';
+    a.addEventListener('click', async e => {
+      const isPostFormWhatsapp=a.hasAttribute('data-whatsapp-complete');
+      const rawName=a.dataset.event||'';
+      const name=isPostFormWhatsapp&&rawName==='click_whatsapp'?'post_form_whatsapp':rawName;
+      const originalHref=a.href||'';
+      const isWhatsapp=rawName==='click_whatsapp';
 
-      if (isWhatsapp) {
-        const clickId = makeClickId();
-        const tracked = prepareWhatsappHref(originalHref, clickId);
-        if (tracked) {
-          a.href = tracked.href;
-          recordWhatsappClick(a, clickId, tracked.token, originalHref);
+      if(isWhatsapp){
+        e.preventDefault();
+        let win=null;
+        try{win=window.open('about:blank','_blank');if(win)win.opener=null;}catch(_){}
+        try{
+          const trackedHref=await buildTrackedWhatsappHref(originalHref,a);
+          if(win&&!win.closed)win.location.replace(trackedHref); else location.href=trackedHref;
+        }catch(_){
+          if(win&&!win.closed)win.location.replace(originalHref); else location.href=originalHref;
         }
       }
 
-      const params = {link_url:a.href || originalHref, landing_path:location.pathname};
-      pushEvent(name, params);
-
-      // Only a normal website WhatsApp click is a Google Ads conversion.
-      // The post-form CTA is tracked separately to avoid double counting.
-      if (rawName === 'click_whatsapp' && !isPostFormWhatsapp) {
-        adsConversion(ADS.whatsapp, {value:1, currency:'SAR'});
-      }
-      if (name === 'click_call') {
-        adsConversion(ADS.call, {value:1, currency:'SAR'});
-      }
-    }, {passive:true});
+      const params={link_url:a.href||originalHref,landing_path:location.pathname};
+      pushEvent(name,params);
+      if(rawName==='click_whatsapp'&&!isPostFormWhatsapp)adsConversion(ADS.whatsapp,{value:1,currency:'SAR'});
+      if(name==='click_call')adsConversion(ADS.call,{value:1,currency:'SAR'});
+    });
   });
 
   document.querySelectorAll('[data-lead-form]').forEach(form => {
