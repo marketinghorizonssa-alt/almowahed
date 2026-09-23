@@ -145,9 +145,15 @@
 
   document.querySelectorAll('[data-event]').forEach(a => {
     a.addEventListener('click', () => {
-      const name = a.dataset.event || '';
+      const isPostFormWhatsapp = a.hasAttribute('data-whatsapp-complete');
+      const rawName = a.dataset.event || '';
+      const name = isPostFormWhatsapp && rawName === 'click_whatsapp'
+        ? 'post_form_whatsapp'
+        : rawName;
       const originalHref = a.href || '';
-      if (name === 'click_whatsapp') {
+      const isWhatsapp = rawName === 'click_whatsapp';
+
+      if (isWhatsapp) {
         const clickId = makeClickId();
         const tracked = prepareWhatsappHref(originalHref, clickId);
         if (tracked) {
@@ -155,9 +161,13 @@
           recordWhatsappClick(a, clickId, tracked.token, originalHref);
         }
       }
+
       const params = {link_url:a.href || originalHref, landing_path:location.pathname};
       pushEvent(name, params);
-      if (name === 'click_whatsapp' && !a.hasAttribute('data-whatsapp-complete')) {
+
+      // Only a normal website WhatsApp click is a Google Ads conversion.
+      // The post-form CTA is tracked separately to avoid double counting.
+      if (rawName === 'click_whatsapp' && !isPostFormWhatsapp) {
         adsConversion(ADS.whatsapp, {value:1, currency:'SAR'});
       }
       if (name === 'click_call') {
