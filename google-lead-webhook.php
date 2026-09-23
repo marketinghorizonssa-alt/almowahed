@@ -4,7 +4,7 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
-const GOOGLE_SECRET_SHA256 = '19dc305980c2180c52d6ce7f4181092558033e69f0dd8778194f8fcfbfbe55c0';
+const GOOGLE_SECRET_SHA256 = 'db4bafad4633ea9eb327cdfad091f1e8923d92907231ae3dcf56356c456bf64e';
 const ALMOWAHID_RECEIVER = 'https://script.google.com/macros/s/AKfycbzpY2jJ9X1yXusKxUZo3z8YZC1y8KCuszJ9NrMW9HelE4Iki-I54ewbvPHthXbr54DpwA/exec';
 const QUEUE_DIR = '/home/u414915683/.almowahid-leads';
 
