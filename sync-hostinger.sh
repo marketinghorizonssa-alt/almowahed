@@ -11,7 +11,7 @@ for P in $FILES; do
 done
 
 php -l "$ROOT/lead.php.tmp" >/dev/null
-php -l "$ROOT/retry_leads.php.tmp" >/dev/null
+php -l "$ROOT/retry_leads.php.tmp" >/dev/null\nphp -l "$ROOT/google-lead-webhook.php.tmp" >/dev/null
 
 for P in $FILES; do
   mv "$ROOT/$P.tmp" "$ROOT/$P"
