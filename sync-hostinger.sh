@@ -3,21 +3,20 @@ set -eu
 ROOT=/home/u414915683/domains/almowahid.sa/public_html/ads
 BASE=https://raw.githubusercontent.com/marketinghorizonssa-alt/almowahed/main
 
-curl -fsSL "$BASE/index.html" -o "$ROOT/index.html.tmp"
-curl -fsSL "$BASE/assets/style.css" -o "$ROOT/assets/style.css.tmp"
-curl -fsSL "$BASE/assets/app.js" -o "$ROOT/assets/app.js.tmp"
-curl -fsSL "$BASE/lead.php" -o "$ROOT/lead.php.tmp"
-curl -fsSL "$BASE/retry_leads.php" -o "$ROOT/retry_leads.php.tmp"
+FILES="index.html about/index.html domestic-workers/index.html drivers/index.html ethiopia/index.html faq/index.html nationalities/index.html offers-fast/index.html philippines/index.html privacy/index.html recruitment-office/index.html assets/style.css assets/app.js lead.php retry_leads.php"
+
+for P in $FILES; do
+  mkdir -p "$ROOT/$(dirname "$P")"
+  curl -fsSL "$BASE/$P" -o "$ROOT/$P.tmp"
+done
 
 php -l "$ROOT/lead.php.tmp" >/dev/null
 php -l "$ROOT/retry_leads.php.tmp" >/dev/null
 
-mv "$ROOT/index.html.tmp" "$ROOT/index.html"
-mv "$ROOT/assets/style.css.tmp" "$ROOT/assets/style.css"
-mv "$ROOT/assets/app.js.tmp" "$ROOT/assets/app.js"
-mv "$ROOT/lead.php.tmp" "$ROOT/lead.php"
-mv "$ROOT/retry_leads.php.tmp" "$ROOT/retry_leads.php"
+for P in $FILES; do
+  mv "$ROOT/$P.tmp" "$ROOT/$P"
+done
 
 sh "$ROOT/deploy-post.sh"
 date -Is > "$ROOT/.last-github-sync"
-echo ALMOWAHID_GITHUB_SYNC_OK
+echo ALMOWAHID_ATTRIBUTION_SYNC_OK
